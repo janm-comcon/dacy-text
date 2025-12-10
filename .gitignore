@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Models & Data
+data/lm/*.bin
+data/lm/*.arpa
+data/pdg/*.json
+data/raw/*.txt
+
+# Logs
+logs/*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

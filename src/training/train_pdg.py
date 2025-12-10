@@ -53,6 +53,6 @@ def save_pdg(model, outfile="grammar_stats.json"):
         json.dump(model, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-    pdg = train_pdg("large_training_text.txt")
-    save_pdg(pdg, "grammar_stats.json")
+    pdg = train_pdg("data/lm/lm_corpus.txt")
+    save_pdg(pdg, "data/pdg/grammar_stats.json")
     print("PDG training done → grammar_stats.json")
