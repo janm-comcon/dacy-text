@@ -1,6 +1,7 @@
 from fastapi import APIRouter
-from .schemas import SentenceRequest, ScoreResponse
-from ..models.hybrid_model import HybridModel
+
+from src.api.schemas import SentenceRequest, ScoreResponse
+from src.models.hybrid_model import HybridModel
 
 router = APIRouter()
 
