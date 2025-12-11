@@ -20,11 +20,13 @@ class SpellChecker:
         self.cutoff = cutoff
         self.vocab = self._load_vocab()
         self.lm = kenlm.Model(lm_path) if lm_path else None
-        self.lemma_lookup = self._load_lemmas(lemma_path)
+        self.lemmas = self._load_lemmas(lemma_path)
+        self.variant_to_canonical = self._build_variant_lookup(self.lemmas)
+        self.canonicals_by_cat = {cat: set(items.keys()) for cat, items in self.lemmas.items()}
         # Domain-specific fixes that are faster than fuzzy matching
         self.domain_map = {
             "instal": "installation",
-            "k\u00f8ken": "k\u00f8kken",
+            "køken": "køkken",
         }
 
     def _load_vocab(self) -> set:
@@ -38,37 +40,68 @@ class SpellChecker:
                     vocab.add(token.lower())
         return vocab
 
-    def _load_lemmas(self, lemma_path: Optional[str]) -> Dict[str, str]:
-        """Load lemma variants into a flat lookup of form variant -> canonical."""
+    def _load_lemmas(self, lemma_path: Optional[str]) -> Dict[str, Dict[str, List[str]]]:
+        """
+        Load lemma variants keyed by category, preserving canonical -> variants mapping.
+        Expected schema:
+        {
+          "actions": { "installation": ["instal", ...], ... },
+          "objects": { "køkken": ["køken"], ... },
+          "abbreviations": { "afbryder": ["afb", "afb."], ... }
+        }
+        """
+        empty = {"actions": {}, "objects": {}, "abbreviations": {}}
         if not lemma_path:
-            return {}
+            return empty
         path = Path(lemma_path)
         if not path.exists():
-            return {}
+            return empty
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
-            return {}
+            return empty
 
+        def norm(cat: str) -> Dict[str, List[str]]:
+            raw = data.get(cat, {}) or {}
+            return {k.lower(): [str(v).lower() for v in (vals or [])] for k, vals in raw.items()}
+
+        return {
+            "actions": norm("actions"),
+            "objects": norm("objects"),
+            "abbreviations": norm("abbreviations"),
+        }
+
+    def _build_variant_lookup(self, lemmas: Dict[str, Dict[str, List[str]]]) -> Dict[str, str]:
+        """Flatten variant -> canonical across categories."""
         lookup: Dict[str, str] = {}
-        for category in data.values():
-            if not isinstance(category, dict):
-                continue
-            for canonical, variants in category.items():
-                canon_lower = canonical.lower()
-                lookup[canon_lower] = canon_lower
-                if isinstance(variants, list):
-                    for v in variants:
-                        lookup[str(v).lower()] = canon_lower
+        for cat_map in lemmas.values():
+            for canonical, variants in cat_map.items():
+                lookup[canonical] = canonical
+                for v in variants:
+                    lookup[v] = canonical
         return lookup
+
+    def _nearest_lemma(self, token: str, categories: List[str], cutoff: float = 0.75) -> Optional[str]:
+        """Fuzzy match token to canonical within the given categories."""
+        candidates = []
+        for cat in categories:
+            candidates.extend(self.canonicals_by_cat.get(cat, []))
+        if not candidates:
+            return None
+        matches = difflib.get_close_matches(token.lower(), candidates, n=1, cutoff=cutoff)
+        return matches[0] if matches else None
 
     def suggest(self, token: str, prev_like_num: bool = False) -> str:
         lower = token.lower()
         if lower in self.vocab or not token.isalpha():
             return token
 
-        if lower in self.lemma_lookup:
-            lower = self.lemma_lookup[lower]
+        # Direct lemma variant match
+        canonical = self.variant_to_canonical.get(lower)
+        if not canonical:
+            canonical = self._nearest_lemma(lower, ["actions", "objects", "abbreviations"])
+        if canonical:
+            lower = canonical
 
         # Quick domain remaps
         if lower in self.domain_map:
@@ -102,9 +135,14 @@ class SpellChecker:
         lower = token.lower()
         candidates = set([token])
 
-        # Lemma lookup
-        if lower in self.lemma_lookup:
-            candidates.add(self.lemma_lookup[lower])
+        # Lemma variant/direct lookup
+        canonical = self.variant_to_canonical.get(lower)
+        if canonical:
+            candidates.add(canonical)
+        else:
+            nearest = self._nearest_lemma(lower, ["actions", "objects", "abbreviations"])
+            if nearest:
+                candidates.add(nearest)
 
         # Domain remaps
         if lower in self.domain_map:
