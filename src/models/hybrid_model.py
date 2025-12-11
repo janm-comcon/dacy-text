@@ -4,11 +4,23 @@ from src.models.spellchecker import SpellChecker
 
 
 class HybridModel:
-    def __init__(self, pdg_path, lm_path, alpha=0.5, vocab_path=None, correction_cutoff: float = 0.8):
+    def __init__(
+        self,
+        pdg_path,
+        lm_path,
+        alpha=0.5,
+        vocab_path=None,
+        correction_cutoff: float = 0.8,
+        lemma_path: str | None = None,
+    ):
         self.pdg = PDGModel(pdg_path)
         self.lm = LMModel(lm_path)
         self.alpha = alpha
-        self.spellchecker = SpellChecker(vocab_path, cutoff=correction_cutoff) if vocab_path else None
+        self.spellchecker = (
+            SpellChecker(vocab_path, cutoff=correction_cutoff, lm_path=lm_path, lemma_path=lemma_path)
+            if vocab_path
+            else None
+        )
 
     def score(self, sentence: str, autocorrect: bool = True) -> dict:
         corrections = {"corrected_sentence": sentence, "corrections": []}

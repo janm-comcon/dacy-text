@@ -11,6 +11,7 @@ model = HybridModel(
     alpha=0.5,
     vocab_path="data/lm/lm_corpus.txt",
     correction_cutoff=0.82,
+    lemma_path="data/lm/lemmas.json",
 )
 
 @router.post("/score", response_model=ScoreResponse)
