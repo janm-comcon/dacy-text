@@ -39,8 +39,12 @@ Score text via HTTP:
 ```bash
 curl -X POST "http://localhost:8000/score" \
   -H "Content-Type: application/json" \
-  -d '{"text": "Jeg har en stor hund som elsker at lege."}'
+  -d '{"text": "Jeg har en stor hund som elsker at lege.", "autocorrect": true}'
 ```
+
+The API will attempt to spellcheck the input against the training corpus vocabulary
+(`data/lm/lm_corpus.txt`) before scoring. The response returns the original sentence,
+the corrected sentence, and per-token corrections so you can see what changed.
 
 ### CLI quick check
 The CLI helper in `src/cli/scor_sentence.py` demonstrates hybrid scoring for a single sentence. Ensure `grammar_stats.json` and `my_corpus.bin` are available in your working directory (or edit the paths), then run:

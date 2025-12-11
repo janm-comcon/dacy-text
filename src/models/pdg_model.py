@@ -1,8 +1,7 @@
 import json
 import math
-import spacy
 
-nlp = spacy.load("da_core_news_sm")
+from src.nlp.spacy_pipeline import nlp
 
 class PDGModel:
     def __init__(self, path, smoothing=1e-6):
