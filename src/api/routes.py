@@ -16,4 +16,4 @@ model = HybridModel(
 
 @router.post("/score", response_model=ScoreResponse)
 def score(req: SentenceRequest):
-    return model.score(req.text, autocorrect=req.autocorrect)
+    return model.score(req.text.lower(), autocorrect=req.autocorrect)
